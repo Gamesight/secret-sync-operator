@@ -1,0 +1,42 @@
+# Golang CircleCI 2.0 configuration file
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version
+      - image: circleci/golang:1.9
+
+    #### TEMPLATE_NOTE: go expects specific checkout path representing url
+    #### expecting it in the form of
+    ####   /go/src/github.com/circleci/go-tool
+    ####   /go/src/bitbucket.org/circleci/go-tool
+    working_directory: /go/src/github.com/innervate/secret-sync-operator
+    steps:
+      - checkout
+
+      - run:
+          name: Install operator-sdk
+          command: |
+            mkdir -p $GOPATH/src/github.com/operator-framework
+            cd $GOPATH/src/github.com/operator-framework
+            git clone https://github.com/operator-framework/operator-sdk
+            cd operator-sdk
+            git checkout master
+            make dep
+            make install
+
+      - setup_remote_docker:
+          # They want money to enable this toggle :(
+          docker_layer_caching: false
+
+      - run:
+          name: Login to docker
+          command: docker login -u $DOCKER_USER -p $DOCKER_PASS quay.io
+
+      - run:
+          name: Build
+          command: operator-sdk build quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+
+      - deploy:
+          command: |
+            docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
