@@ -4,7 +4,7 @@ jobs:
   build:
     docker:
       # specify the version
-      - image: circleci/golang:1.9
+      - image: circleci/golang:1.12
 
     #### TEMPLATE_NOTE: go expects specific checkout path representing url
     #### expecting it in the form of
@@ -16,7 +16,7 @@ jobs:
 
       - run:
           name: Install operator-sdk
-          command: |
+          command: |c
             mkdir -p $GOPATH/src/github.com/operator-framework
             cd $GOPATH/src/github.com/operator-framework
             git clone https://github.com/operator-framework/operator-sdk
