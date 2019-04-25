@@ -16,7 +16,7 @@ spec:
       containers:
         - name: secret-sync-operator
           # Replace this with the built image name
-          image: quay.io/innervate/secret-sync-operator:v0.0.1
+          image: quay.io/innervate/secret-sync-operator:v0.0.2
           command:
           - secret-sync-operator
           imagePullPolicy: Always
