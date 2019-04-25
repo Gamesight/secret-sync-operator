@@ -86,6 +86,9 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling SynchronizedSecret")
 
+	// Refresh our secrets every 10 minutes
+	updateRate := time.Minute * 10
+
 	// Fetch the SynchronizedSecret instance
 	instance := &appv1alpha1.SynchronizedSecret{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
@@ -97,45 +100,32 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		reqLogger.Error(err, "Error retrieving SychronizedSecret")
+		updateStatus(&r.client, instance, "err:config-read-failed")
 		return reconcile.Result{}, err
 	}
 
-	reqLogger.Info("Reading remote cluster credentials secret", "Name", "secret-sync-remote-cluster-creds", "Namespace", instance.Namespace)
-
-	// Poll the remote secret
-	remoteClusterSecret := &corev1.Secret{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: "secret-sync-remote-cluster-creds", Namespace: instance.Namespace}, remoteClusterSecret)
+	// Get connection to our remote cluster
+	remoteClient, err := getRemoteClient(&r.client, instance)
 	if err != nil {
-		return reconcile.Result{}, err
+		reqLogger.Error(err, "Error connecting to remote cluster (credentials should be in 'secret-sync-remote-cluster-creds')")
+		updateStatus(&r.client, instance, "err:remote-connect")
+		return reconcile.Result{RequeueAfter: updateRate}, err
 	}
 
-	reqLogger.Info("Creating remote connection")
-
-	config := &rest.Config{
-		Host:        string(remoteClusterSecret.Data["host"]),
-		BearerToken: string(remoteClusterSecret.Data["token"]),
-		TLSClientConfig: rest.TLSClientConfig{
-			CAData: remoteClusterSecret.Data["ca"],
-		},
-	}
-	remoteClient, err := client.New(config, client.Options{})
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	reqLogger.Info("Reading remote secret")
-
+	// Read the secret from the remote cluster
 	remoteSecret := &corev1.Secret{}
 	err = remoteClient.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.RemoteSecret.Name, Namespace: instance.Spec.RemoteSecret.Namespace}, remoteSecret)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Remote secret not found", "Secret.Namespace", instance.Spec.RemoteSecret.Namespace, "Secret.Name", instance.Spec.RemoteSecret.Name)
+		updateStatus(&r.client, instance, "err:remote-read-failed")
 		// Remote secret doesn't exist... requeue to try again
-		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
+		return reconcile.Result{RequeueAfter: updateRate}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Secret object
+	// Define our new local Secret object
 	secret := newSecretForCR(instance, remoteSecret)
 
 	// Set SynchronizedSecret instance as the owner and controller
@@ -154,8 +144,9 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 
+			updateStatus(&r.client, instance, "insync")
 			// Secret created successfully - requeue in 10 minutes
-			return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
+			return reconcile.Result{RequeueAfter: updateRate}, nil
 		}
 
 		return reconcile.Result{}, err
@@ -166,13 +157,47 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
+		updateStatus(&r.client, instance, "insync")
 		// Secret created successfully - requeue in 10 minutes
-		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
+		return reconcile.Result{RequeueAfter: updateRate}, nil
 	}
 
 	// Secret already exists and is up to date - requeue in 10 minutes
 	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
-	return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
+	updateStatus(&r.client, instance, "insync")
+	return reconcile.Result{RequeueAfter: updateRate}, nil
+}
+
+func getRemoteClient(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret) (client.Client, error) {
+
+	// Poll the remote secret
+	remoteClusterSecret := &corev1.Secret{}
+	err := (*localClient).Get(context.TODO(), types.NamespacedName{Name: "secret-sync-remote-cluster-creds", Namespace: instance.Namespace}, remoteClusterSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &rest.Config{
+		Host:        string(remoteClusterSecret.Data["host"]),
+		BearerToken: string(remoteClusterSecret.Data["token"]),
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData: remoteClusterSecret.Data["ca"],
+		},
+	}
+	remoteClient, err := client.New(config, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	return remoteClient, nil
+}
+
+func updateStatus(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret, status string) error {
+	// Update status.Nodes if needed
+	instance.Status.Status = status
+	instance.Status.LastSync = time.Now().Format(time.RFC3339)
+
+	return (*localClient).Status().Update(context.TODO(), instance)
 }
 
 // newSecretForCR returns a secret with the same name/namespace as the cr

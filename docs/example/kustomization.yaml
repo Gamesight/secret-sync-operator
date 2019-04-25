@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: secret-sync-operator
 
 bases:
-- ../../deploy
+- github.com/Innervate/secret-sync-operator//deploy
 
 resources:
 - namespace.yaml
