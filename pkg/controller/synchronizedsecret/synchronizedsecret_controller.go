@@ -110,7 +110,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	if err != nil {
 		reqLogger.Error(err, "Error connecting to remote cluster (credentials should be in 'secret-sync-remote-cluster-creds')")
 		updateStatus(&r.client, instance, "err:remote-connect")
-		return reconcile.Result{RequeueAfter: updateRate}, err
+		return reconcile.Result{}, err
 	}
 
 	// Read the secret from the remote cluster
@@ -163,8 +163,8 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	}
 
 	// Secret already exists and is up to date - requeue in 10 minutes
-	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
 	updateStatus(&r.client, instance, "insync")
+	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
 	return reconcile.Result{RequeueAfter: updateRate}, nil
 }
 
