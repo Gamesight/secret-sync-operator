@@ -87,7 +87,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	reqLogger.Info("Reconciling SynchronizedSecret")
 
 	// Refresh our secrets every 10 minutes
-	updateRate := time.Minute * 10
+	// updateRate := time.Minute * 10
 
 	// Fetch the SynchronizedSecret instance
 	instance := &appv1alpha1.SynchronizedSecret{}
@@ -120,7 +120,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 		reqLogger.Info("Remote secret not found", "Secret.Namespace", instance.Spec.RemoteSecret.Namespace, "Secret.Name", instance.Spec.RemoteSecret.Name)
 		updateStatus(&r.client, instance, "err:remote-read-failed")
 		// Remote secret doesn't exist... requeue to try again
-		return reconcile.Result{RequeueAfter: updateRate}, nil
+		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -146,7 +146,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 
 			updateStatus(&r.client, instance, "insync")
 			// Secret created successfully - requeue in 10 minutes
-			return reconcile.Result{RequeueAfter: updateRate}, nil
+			return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
 		}
 
 		return reconcile.Result{}, err
@@ -159,13 +159,13 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 
 		updateStatus(&r.client, instance, "insync")
 		// Secret created successfully - requeue in 10 minutes
-		return reconcile.Result{RequeueAfter: updateRate}, nil
+		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
 	}
 
 	// Secret already exists and is up to date - requeue in 10 minutes
 	updateStatus(&r.client, instance, "insync")
 	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
-	return reconcile.Result{RequeueAfter: updateRate}, nil
+	return reconcile.Result{RequeueAfter: time.Minute * 10}, nil
 }
 
 func getRemoteClient(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret) (client.Client, error) {
