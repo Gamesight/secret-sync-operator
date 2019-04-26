@@ -207,14 +207,13 @@ func updateStatus(localClient *client.Client, instance *appv1alpha1.Synchronized
 
 // newSecretForCR returns a secret with the same name/namespace as the cr
 func newSecretForCR(cr *appv1alpha1.SynchronizedSecret, remoteSecret *corev1.Secret) *corev1.Secret {
-	labels := map[string]string{
-		"app": cr.Name,
-	}
 	return &corev1.Secret{
+		Type: remoteSecret.Type,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name,
-			Namespace: cr.Namespace,
-			Labels:    labels,
+			Name:        cr.Name,
+			Namespace:   cr.Namespace,
+			Labels:      remoteSecret.ObjectMeta.Labels,
+			Annotations: remoteSecret.ObjectMeta.Annotations,
 		},
 		Data: remoteSecret.Data,
 	}

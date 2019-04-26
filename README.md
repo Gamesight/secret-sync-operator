@@ -28,7 +28,7 @@ $ cat << EOF > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: secret-sync-operator
+namespace: kube-system
 
 bases:
 - github.com/Innervate/secret-sync-operator//deploy
@@ -103,3 +103,14 @@ data:
 Your operator should now have access to read the secrets you want to sync. The last step is creating SynchronizedSecrets to the operator knows which secrets you want to sync.
 
 ## Creating a SynchronizedSecret
+Finally we create a SynchronizedSecret which finds a secret on the remote cluster matching the remoteSecret spec and creates a local secret with name/namespace matching the metadata on the SynchronizedSecret object.
+```
+apiVersion: app.gamesight.io/v1alpha1
+kind: SynchronizedSecret
+metadata:
+  name: my-secret-to-distribute
+spec:
+  remoteSecret:
+    name: my-secret-to-distribute
+    namespace: default
+```
