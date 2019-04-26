@@ -101,7 +101,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 		}
 		// Error reading the object - requeue the request.
 		reqLogger.Error(err, "Error retrieving SychronizedSecret")
-		updateStatus(&r.client, instance, "err:config-read-failed")
+		updateStatus(&r.client, instance, "err:config-read-failed", false)
 		return reconcile.Result{}, err
 	}
 
@@ -109,7 +109,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	remoteClient, err := getRemoteClient(&r.client, instance)
 	if err != nil {
 		reqLogger.Error(err, "Error connecting to remote cluster (credentials should be in 'secret-sync-remote-cluster-creds')")
-		updateStatus(&r.client, instance, "err:remote-connect")
+		updateStatus(&r.client, instance, "err:remote-connect", false)
 		return reconcile.Result{}, err
 	}
 
@@ -118,7 +118,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 	err = remoteClient.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.RemoteSecret.Name, Namespace: instance.Spec.RemoteSecret.Namespace}, remoteSecret)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Remote secret not found", "Secret.Namespace", instance.Spec.RemoteSecret.Namespace, "Secret.Name", instance.Spec.RemoteSecret.Name)
-		updateStatus(&r.client, instance, "err:remote-read-failed")
+		updateStatus(&r.client, instance, "err:remote-read-failed", false)
 		// Remote secret doesn't exist... requeue to try again
 		return reconcile.Result{RequeueAfter: updateRate}, nil
 	} else if err != nil {
@@ -144,7 +144,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 
-			updateStatus(&r.client, instance, "insync")
+			updateStatus(&r.client, instance, "insync", false)
 			// Secret created successfully - requeue in 10 minutes
 			return reconcile.Result{RequeueAfter: updateRate}, nil
 		}
@@ -157,13 +157,13 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		updateStatus(&r.client, instance, "insync")
+		updateStatus(&r.client, instance, "insync", true)
 		// Secret created successfully - requeue in 10 minutes
 		return reconcile.Result{RequeueAfter: updateRate}, nil
 	}
 
 	// Secret already exists and is up to date - requeue in 10 minutes
-	updateStatus(&r.client, instance, "insync")
+	updateStatus(&r.client, instance, "insync", false)
 	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
 	return reconcile.Result{RequeueAfter: updateRate}, nil
 }
@@ -192,11 +192,13 @@ func getRemoteClient(localClient *client.Client, instance *appv1alpha1.Synchroni
 	return remoteClient, nil
 }
 
-func updateStatus(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret, status string) error {
+func updateStatus(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret, status string, bumpTimestamp bool) error {
 	// Update status.Nodes if needed
 	if instance.Status.Status != status {
 		instance.Status.Status = status
-		instance.Status.LastSync = time.Now().Format(time.RFC3339)
+		if bumpTimestamp {
+			instance.Status.LastSync = time.Now().Format(time.RFC3339)
+		}
 
 		return (*localClient).Status().Update(context.TODO(), instance)
 	}
