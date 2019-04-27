@@ -150,7 +150,10 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 		}
 
 		return reconcile.Result{}, err
-	} else if !reflect.DeepEqual(found.Data, secret.Data) {
+	} else if !reflect.DeepEqual(found.Data, secret.Data) ||
+		!reflect.DeepEqual(found.ObjectMeta.Labels, secret.ObjectMeta.Labels) ||
+		!reflect.DeepEqual(found.ObjectMeta.Annotations, secret.ObjectMeta.Annotations) {
+
 		reqLogger.Info("Updating existing Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
 		err = r.client.Update(context.TODO(), secret)
 		if err != nil {
