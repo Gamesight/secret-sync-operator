@@ -22,7 +22,7 @@ jobs:
             git clone https://github.com/operator-framework/operator-sdk
             cd operator-sdk
             git checkout master
-            make dep
+            make tidy
             make install
 
       - setup_remote_docker:
