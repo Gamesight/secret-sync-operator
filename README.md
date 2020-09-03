@@ -20,13 +20,12 @@ In this example each of the Regional Clusters run the Secret Sync Operator to re
 
 ## Quick Start (with Kustomize)
 Create a namespace to run secret-sync-operator in (or use an existing one)
-```
-$ kubectl create namespace secret-sync-operator
+```bash
+kubectl create namespace secret-sync-operator
 ```
 
-Create a new Kustomization file
-```
-$ cat << EOF > kustomization.yaml
+Create a new `kustomization.yaml` file
+```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -34,12 +33,11 @@ namespace: kube-system
 
 bases:
 - github.com/Innervate/secret-sync-operator//deploy
-EOF
 ```
 
 Deploy the operator + CustomResourceDefinition
-```
-$ kubectl apply -k ./
+```bash
+kubectl apply -k ./
 ```
 
 ## Connecting to a Remote Cluster
@@ -47,7 +45,7 @@ Now that the operator is deployed you can configure the credentials for the remo
 synchronizing credentials from.
 
 First we will create a service account that just has access to read the secret we want to sync. This ServiceAccount should be created in the remote cluster (eg the one that you want to pull data from).
-```
+```yaml
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -78,12 +76,12 @@ roleRef:
 ```
 
 Now we will pull the credentials for our new service account so we can grant the Secret Sync Operator access to read our remote secrets.
-```
-$ kubectl get secret secret-sync-operator-agent-token-xxxxx -o "jsonpath={.data.token}"
+```bash
+kubectl get secret secret-sync-operator-agent-token-xxxxx -o "jsonpath={.data.token}"
 ```
 
 Now create a new secret in the cluster running the Secret Sync Operator with the credentials to access your remote cluster.
-```
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -108,7 +106,7 @@ Your operator should now have access to read the secrets you want to sync. The l
 
 ## Creating a SynchronizedSecret
 Finally we create a SynchronizedSecret which finds a secret on the remote cluster matching the remoteSecret spec and creates a local secret with name/namespace matching the metadata on the SynchronizedSecret object.
-```
+```yaml
 apiVersion: app.gamesight.io/v1alpha1
 kind: SynchronizedSecret
 metadata:
