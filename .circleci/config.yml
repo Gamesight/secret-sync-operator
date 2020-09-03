@@ -21,7 +21,7 @@ jobs:
             cd $GOPATH/src/github.com/operator-framework
             git clone --depth 1 --branch v0.19.3 https://github.com/operator-framework/operator-sdk
             cd operator-sdk
-            make dep
+            make tidy
             make install
 
       - setup_remote_docker:
