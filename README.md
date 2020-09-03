@@ -1,6 +1,6 @@
 # Secret Sync Operator
 A no-frills Kubernetes operator for syncing Secrets across clusters.
-[![CircleCI](https://circleci.com/gh/Innervate/secret-sync-operator.svg?style=svg)](https://circleci.com/gh/Innervate/secret-sync-operator)
+[![CircleCI](https://circleci.com/gh/Gamesight/secret-sync-operator.svg?style=svg)](https://circleci.com/gh/Gamesight/secret-sync-operator)
 
 ## Overview
 This project is a Kubernetes operator design to keep secrets in sync between multiple clusters. It was created specifically for use in multi-region deployments to keep SSL certificates created through letsencrypt HTTP01 challenges up to date. While designed specifically for this use case, the operator is designed to be generic for any case in which you would want to keep Secrets in sync between clusters or even between namespaces within a cluster.
@@ -19,11 +19,13 @@ An example deployment where you have one primary cluster that acts as the source
 In this example each of the Regional Clusters run the Secret Sync Operator to regularly update their local copy of the secret from the Primary Cluster.
 
 ## Quick Start (with Kustomize)
+Create a namespace to run secret-sync-operator in (or use an existing one)
 ```
-# Create a namespace to run secret-sync-operator in (or use an existing one)
 $ kubectl create namespace secret-sync-operator
+```
 
-# Create a new Kustomization file
+Create a new Kustomization file
+```
 $ cat << EOF > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -33,9 +35,11 @@ namespace: kube-system
 bases:
 - github.com/Innervate/secret-sync-operator//deploy
 EOF
+```
 
-# Deploy the operator + CustomResourceDefinition
-$ kustomize build  | kubectl apply -f -
+Deploy the operator + CustomResourceDefinition
+```
+$ kubectl apply -k ./
 ```
 
 ## Connecting to a Remote Cluster
