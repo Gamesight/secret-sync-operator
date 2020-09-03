@@ -19,9 +19,9 @@ jobs:
           command: |
             mkdir -p $GOPATH/src/github.com/operator-framework
             cd $GOPATH/src/github.com/operator-framework
-            git clone --depth 1 --branch v0.19.3 https://github.com/operator-framework/operator-sdk
+            git clone --depth 1 --branch v0.15.2 https://github.com/operator-framework/operator-sdk
             cd operator-sdk
-            make tidy
+            make dep
             make install
 
       - setup_remote_docker:
