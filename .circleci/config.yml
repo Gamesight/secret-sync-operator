@@ -23,7 +23,6 @@ jobs:
             cd operator-sdk
             git checkout master
             make tidy
-            
             make install
 
       - setup_remote_docker:
@@ -36,8 +35,8 @@ jobs:
 
       - run:
           name: Build
-          command: operator-sdk build quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+          command: make docker-build docker-push IMG=quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
 
-      - deploy:
-          command: |
-            docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+      # - deploy:
+      #     command: |
+      #       docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
