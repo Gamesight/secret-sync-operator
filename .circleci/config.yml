@@ -19,10 +19,10 @@ jobs:
           command: |
             mkdir -p $GOPATH/src/github.com/operator-framework
             cd $GOPATH/src/github.com/operator-framework
-            git clone https://github.com/operator-framework/operator-sdk
+            git clone --depth 1 --branch v0.19.3 https://github.com/operator-framework/operator-sdk
             cd operator-sdk
             git checkout master
-            make tidy
+            make dep
             make install
 
       - setup_remote_docker:
@@ -35,8 +35,8 @@ jobs:
 
       - run:
           name: Build
-          command: make docker-build docker-push IMG=quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+          command: operator-sdk build quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
 
-      # - deploy:
-      #     command: |
-      #       docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+      - deploy:
+          command: |
+            docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
