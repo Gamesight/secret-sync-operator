@@ -32,7 +32,7 @@ kind: Kustomization
 namespace: kube-system
 
 bases:
-- github.com/Innervate/secret-sync-operator//deploy
+- github.com/Gamesight/secret-sync-operator//deploy
 ```
 
 Deploy the operator + CustomResourceDefinition
