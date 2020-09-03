@@ -23,6 +23,7 @@ jobs:
             cd operator-sdk
             git checkout master
             make tidy
+            
             make install
 
       - setup_remote_docker:
