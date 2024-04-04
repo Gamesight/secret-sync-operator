@@ -3,15 +3,6 @@ version: 2.1
 orbs:
   slack: circleci/slack@4.1
 jobs:
-  notify:
-    docker:
-      - image: cimg/base:stable
-
-    steps:
-      - run:
-          name: Success
-          command: |
-            exit 0
   build:
     docker:
       # specify the version
@@ -36,7 +27,6 @@ jobs:
             make install
 
       - setup_remote_docker:
-          # They want money to enable this toggle :(
           docker_layer_caching: false
 
       - run:
@@ -50,146 +40,8 @@ jobs:
       - deploy:
           command: |
             docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
-slack-fail-post-step: &slack-fail-post-step
-  post-steps:
-    - slack/notify:
-        channel: '#dev-ops'
-        event: fail
-        custom: |
-          {
-            "attachments": [
-              {
-                 "color": "#800909",
-                "blocks": [
-                  {
-                    "type": "section",
-                     "text": {
-                      "type": "mrkdwn",
-                      "text": "Failed :sadge: \n $CIRCLE_USERNAME's <$CIRCLE_BUILD_URL|$CIRCLE_JOB> on <https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME|$CIRCLE_PROJECT_REPONAME> (<https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH|*`$CIRCLE_BRANCH`*>)"
-                    }
-                  },
-                  {
-                     "type": "actions",
-                    "elements": [
-                      {
-                         "type": "button",
-                        "text": {
-                          "type": "plain_text",
-                          "text": "View Build"
-                        },
-                        "url": "${CIRCLE_BUILD_URL}"
-                      },
-                      {
-                        "type": "button",
-                        "text": {
-                          "type": "plain_text",
-                          "text": "View Repo"
-                        },
-                        "url": "https://github.com/Gamesight/${CIRCLE_PROJECT_REPONAME}"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
 
 workflows:
   build:
     jobs:
-      - notify:
-          context:
-            - slack-secrets
-          <<: *slack-fail-post-step
-      - build:
-          context: [slack-secrets]
-          requires:
-            - notify
-          post-steps:
-            - slack/notify:
-                channel: '#dev-ops'
-                event: pass
-                custom: |
-                  {
-                    "attachments": [
-                      {
-                        "color": "#36a64f",
-                        "blocks": [
-                          {
-                            "type": "section",
-                            "text": {
-                              "type": "mrkdwn",
-                              "text": "Success :pog: \n $CIRCLE_USERNAME's <$CIRCLE_BUILD_URL|$CIRCLE_JOB> on <https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME|$CIRCLE_PROJECT_REPONAME> (<https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH|*`$CIRCLE_BRANCH`*>)"
-                            }
-                          },
-                          {
-                            "type": "actions",
-                            "elements": [
-                              {
-                                "type": "button",
-                                "text": {
-                                  "type": "plain_text",
-                                  "text": "View Build"
-                                },
-                                "url": "${CIRCLE_BUILD_URL}"
-                              },
-                              {
-                                "type": "button",
-                                "text": {
-                                  "type": "plain_text",
-                                  "text": "View Repo"
-                                },
-                                "url": "https://github.com/Gamesight/${CIRCLE_PROJECT_REPONAME}"
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-            - slack/notify:
-                channel: '#dev-ops'
-                event: fail
-                custom: |
-                  {
-                    "attachments": [
-                      {
-                         "color": "#800909",
-                        "blocks": [
-                          {
-                            "type": "section",
-                             "text": {
-                              "type": "mrkdwn",
-                              "text": "Failed :sadge: \n $CIRCLE_USERNAME's <$CIRCLE_BUILD_URL|$CIRCLE_JOB> on <https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME|$CIRCLE_PROJECT_REPONAME> (<https://github.com/Gamesight/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH|*`$CIRCLE_BRANCH`*>)"
-                            }
-                          },
-                          {
-                             "type": "actions",
-                            "elements": [
-                              {
-                                 "type": "button",
-                                "text": {
-                                  "type": "plain_text",
-                                  "text": "View Build"
-                                },
-                                "url": "${CIRCLE_BUILD_URL}"
-                              },
-                              {
-                                "type": "button",
-                                "text": {
-                                  "type": "plain_text",
-                                  "text": "View Repo"
-                                },
-                                "url": "https://github.com/Gamesight/${CIRCLE_PROJECT_REPONAME}"
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              ignore: /.*/
+      - build
