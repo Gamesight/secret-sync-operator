@@ -1,5 +1,7 @@
 # Golang CircleCI 2.0 configuration file
-version: 2
+version: 2.1
+orbs:
+  slack: circleci/slack@4.1
 jobs:
   build:
     docker:
@@ -19,13 +21,12 @@ jobs:
           command: |
             mkdir -p $GOPATH/src/github.com/operator-framework
             cd $GOPATH/src/github.com/operator-framework
-            git clone --depth 1 --branch v0.15.2 https://github.com/operator-framework/operator-sdk
+            git clone --depth 1 --branch v0.16.0 https://github.com/operator-framework/operator-sdk
             cd operator-sdk
             make dep
             make install
 
       - setup_remote_docker:
-          # They want money to enable this toggle :(
           docker_layer_caching: false
 
       - run:
@@ -39,3 +40,8 @@ jobs:
       - deploy:
           command: |
             docker push quay.io/innervate/secret-sync-operator:${CIRCLE_SHA1}
+
+workflows:
+  build:
+    jobs:
+      - build
