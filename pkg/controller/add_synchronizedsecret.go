@@ -1,3 +1,4 @@
+// Package controller contains controllers for custom resources
 package controller
 
 import (

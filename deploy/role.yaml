@@ -1,54 +1,56 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: secret-sync-operator
 rules:
+# Permissions for Secrets (core functionality)
 - apiGroups:
   - ""
   resources:
-  - pods
-  - services
-  - endpoints
-  - persistentvolumeclaims
-  - events
-  - configmaps
   - secrets
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+
+# Permissions for Events (optional, for better observability)
 - apiGroups:
   - ""
   resources:
-  - namespaces
+  - events
   verbs:
-  - get
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  - replicasets
-  - statefulsets
-  verbs:
-  - '*'
-- apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - servicemonitors
-  verbs:
-  - get
   - create
-- apiGroups:
-  - apps
-  resourceNames:
-  - secret-sync-operator
-  resources:
-  - deployments/finalizers
-  verbs:
-  - update
+  - patch
+
+# Permissions for SynchronizedSecrets (custom resources)
 - apiGroups:
   - app.gamesight.io
   resources:
-  - '*'
+  - synchronizedsecrets
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - update
+  - patch
+
+# Permissions for SynchronizedSecrets status
+- apiGroups:
+  - app.gamesight.io
+  resources:
+  - synchronizedsecrets/status
+  verbs:
+  - get
+  - update
+  - patch
+
+# Permissions for SynchronizedSecrets finalizers
+- apiGroups:
+  - app.gamesight.io
+  resources:
+  - synchronizedsecrets/finalizers
+  verbs:
+  - update

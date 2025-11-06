@@ -2,24 +2,76 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: secret-sync-operator
+  labels:
+    app.kubernetes.io/name: secret-sync-operator
+    app.kubernetes.io/component: controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: secret-sync-operator
+      app.kubernetes.io/name: secret-sync-operator
   template:
     metadata:
       labels:
-        name: secret-sync-operator
+        app.kubernetes.io/name: secret-sync-operator
+        app.kubernetes.io/component: controller
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
     spec:
       serviceAccountName: secret-sync-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: secret-sync-operator
-          # Replace this with the built image name
-          image: quay.io/innervate/secret-sync-operator:v0.0.2
+        - name: manager
+          image: secret-sync-operator:latest
+          imagePullPolicy: IfNotPresent
           command:
-          - secret-sync-operator
-          imagePullPolicy: Always
+            - /manager
+          args:
+            - --metrics-bind-address=:8383
+            - --health-probe-bind-address=:8081
+          ports:
+            - containerPort: 8383
+              name: metrics
+              protocol: TCP
+            - containerPort: 8081
+              name: health
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
           env:
             - name: WATCH_NAMESPACE
               value: ""
@@ -27,5 +79,3 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "secret-sync-operator"

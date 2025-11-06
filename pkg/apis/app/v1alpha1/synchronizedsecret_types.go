@@ -50,7 +50,3 @@ type SynchronizedSecretList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SynchronizedSecret `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&SynchronizedSecret{}, &SynchronizedSecretList{})
-}

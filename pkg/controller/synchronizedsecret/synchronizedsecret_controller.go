@@ -1,3 +1,4 @@
+// Package synchronizedsecret contains the controller for SynchronizedSecret resources
 package synchronizedsecret
 
 import (
@@ -17,21 +18,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_synchronizedsecret")
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
-// Add creates a new SynchronizedSecret Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
+// Add creates a new SynchronizedSecret Controller and adds it to the Manager.
+// The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
@@ -50,16 +44,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource SynchronizedSecret
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.SynchronizedSecret{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(source.Kind(mgr.GetCache(),
+		&appv1alpha1.SynchronizedSecret{},
+		&handler.TypedEnqueueRequestForObject[*appv1alpha1.SynchronizedSecret]{}))
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to secondary resource Secrets and requeue the owner SynchronizedSecret
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &appv1alpha1.SynchronizedSecret{},
-	})
+	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}, handler.TypedEnqueueRequestForOwner[*corev1.Secret](
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&appv1alpha1.SynchronizedSecret{},
+		handler.OnlyControllerOwner(),
+	)))
 	if err != nil {
 		return err
 	}
@@ -77,13 +75,13 @@ type ReconcileSynchronizedSecret struct {
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a SynchronizedSecret object and makes changes based on the state read
-// and what is in the SynchronizedSecret.Spec
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+// Reconcile reads that state of the cluster for a SynchronizedSecret object and makes changes
+// based on the state read and what is in the SynchronizedSecret.Spec.
+// The Controller will requeue the Request to be processed again if the returned error is non-nil
+// or Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (r *ReconcileSynchronizedSecret) Reconcile(ctx context.Context,
+	request reconcile.Request) (reconcile.Result, error) {
+	reqLogger := log.FromContext(ctx).WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling SynchronizedSecret")
 
 	// Refresh our secrets every 10 minutes
@@ -91,7 +89,7 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 
 	// Fetch the SynchronizedSecret instance
 	instance := &appv1alpha1.SynchronizedSecret{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -101,24 +99,29 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 		}
 		// Error reading the object - requeue the request.
 		reqLogger.Error(err, "Error retrieving SychronizedSecret")
-		updateStatus(&r.client, instance, "err:config-read-failed", false)
+		_ = updateStatus(ctx, r.client, instance, "err:config-read-failed", false)
 		return reconcile.Result{}, err
 	}
 
 	// Get connection to our remote cluster
-	remoteClient, err := getRemoteClient(&r.client, instance)
+	remoteClient, err := getRemoteClient(ctx, r.client, instance)
 	if err != nil {
-		reqLogger.Error(err, "Error connecting to remote cluster (credentials should be in 'secret-sync-remote-cluster-creds')")
-		updateStatus(&r.client, instance, "err:remote-connect", false)
+		reqLogger.Error(err,
+			"Error connecting to remote cluster (credentials should be in 'secret-sync-remote-cluster-creds')")
+		_ = updateStatus(ctx, r.client, instance, "err:remote-connect", false)
 		return reconcile.Result{}, err
 	}
 
 	// Read the secret from the remote cluster
 	remoteSecret := &corev1.Secret{}
-	err = remoteClient.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.RemoteSecret.Name, Namespace: instance.Spec.RemoteSecret.Namespace}, remoteSecret)
+	err = remoteClient.Get(ctx,
+		types.NamespacedName{Name: instance.Spec.RemoteSecret.Name,
+			Namespace: instance.Spec.RemoteSecret.Namespace}, remoteSecret)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Remote secret not found", "Secret.Namespace", instance.Spec.RemoteSecret.Namespace, "Secret.Name", instance.Spec.RemoteSecret.Name)
-		updateStatus(&r.client, instance, "err:remote-read-failed", false)
+		reqLogger.Info("Remote secret not found",
+			"Secret.Namespace", instance.Spec.RemoteSecret.Namespace,
+			"Secret.Name", instance.Spec.RemoteSecret.Name)
+		_ = updateStatus(ctx, r.client, instance, "err:remote-read-failed", false)
 		// Remote secret doesn't exist... requeue to try again
 		return reconcile.Result{RequeueAfter: updateRate}, nil
 	} else if err != nil {
@@ -135,47 +138,51 @@ func (r *ReconcileSynchronizedSecret) Reconcile(request reconcile.Request) (reco
 
 	// Check if this Secret already exists
 	found := &corev1.Secret{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
+	err = r.client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
-			err = r.client.Create(context.TODO(), secret)
+			err = r.client.Create(ctx, secret)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			updateStatus(&r.client, instance, "insync", false)
+			_ = updateStatus(ctx, r.client, instance, "insync", false)
 			// Secret created successfully - requeue in 10 minutes
 			return reconcile.Result{RequeueAfter: updateRate}, nil
 		}
 
 		return reconcile.Result{}, err
 	} else if !reflect.DeepEqual(found.Data, secret.Data) ||
-		!reflect.DeepEqual(found.ObjectMeta.Labels, secret.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(found.ObjectMeta.Annotations, secret.ObjectMeta.Annotations) {
-
+		!reflect.DeepEqual(found.Labels, secret.Labels) ||
+		!reflect.DeepEqual(found.Annotations, secret.Annotations) {
 		reqLogger.Info("Updating existing Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
-		err = r.client.Update(context.TODO(), secret)
+		err = r.client.Update(ctx, secret)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		updateStatus(&r.client, instance, "insync", true)
+		_ = updateStatus(ctx, r.client, instance, "insync", true)
 		// Secret created successfully - requeue in 10 minutes
 		return reconcile.Result{RequeueAfter: updateRate}, nil
 	}
 
 	// Secret already exists and is up to date - requeue in 10 minutes
-	updateStatus(&r.client, instance, "insync", false)
-	reqLogger.Info("Skip reconcile: Secret already up to date", "Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
+	_ = updateStatus(ctx, r.client, instance, "insync", false)
+	reqLogger.Info("Skip reconcile: Secret already up to date",
+		"Secret.Namespace", found.Namespace, "Secret.Name", found.Name)
 	return reconcile.Result{RequeueAfter: updateRate}, nil
 }
 
-func getRemoteClient(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret) (client.Client, error) {
-
+func getRemoteClient(ctx context.Context, localClient client.Client,
+	instance *appv1alpha1.SynchronizedSecret) (client.Client, error) {
 	// Poll the remote secret
 	remoteClusterSecret := &corev1.Secret{}
-	err := (*localClient).Get(context.TODO(), types.NamespacedName{Name: "secret-sync-remote-cluster-creds", Namespace: instance.Namespace}, remoteClusterSecret)
+	err := localClient.Get(ctx,
+		types.NamespacedName{
+			Name:      "secret-sync-remote-cluster-creds",
+			Namespace: instance.Namespace,
+		}, remoteClusterSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -195,15 +202,16 @@ func getRemoteClient(localClient *client.Client, instance *appv1alpha1.Synchroni
 	return remoteClient, nil
 }
 
-func updateStatus(localClient *client.Client, instance *appv1alpha1.SynchronizedSecret, status string, bumpTimestamp bool) error {
-	// Update status.Nodes if needed
+func updateStatus(ctx context.Context, localClient client.Client,
+	instance *appv1alpha1.SynchronizedSecret, status string, bumpTimestamp bool) error {
+	// Update status if changed
 	if instance.Status.Status != status {
 		instance.Status.Status = status
 		if bumpTimestamp {
 			instance.Status.LastSync = time.Now().Format(time.RFC3339)
 		}
 
-		return (*localClient).Status().Update(context.TODO(), instance)
+		return localClient.Status().Update(ctx, instance)
 	}
 	return nil
 }
@@ -215,8 +223,8 @@ func newSecretForCR(cr *appv1alpha1.SynchronizedSecret, remoteSecret *corev1.Sec
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        cr.Name,
 			Namespace:   cr.Namespace,
-			Labels:      remoteSecret.ObjectMeta.Labels,
-			Annotations: remoteSecret.ObjectMeta.Annotations,
+			Labels:      remoteSecret.Labels,
+			Annotations: remoteSecret.Annotations,
 		},
 		Data: remoteSecret.Data,
 	}

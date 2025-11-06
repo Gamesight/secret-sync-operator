@@ -1,3 +1,4 @@
+// Package apis contains API registration for custom resources
 package apis
 
 import (
