@@ -1,6 +1,19 @@
 # Temporary Build Files
 build/_output
 build/_test
+
+# Build artifacts
+bin/
+manager
+*.coverprofile
+
+# Test coverage
+cover.out
+coverage.txt
+
+# Go vendor directory
+vendor/
+
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-
