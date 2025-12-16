@@ -2,7 +2,7 @@
 package apis
 
 import (
-	"github.com/Innervate/secret-sync-operator/pkg/apis/app/v1alpha1"
+	"github.com/Gamesight/secret-sync-operator/pkg/apis/app/v1alpha1"
 )
 
 func init() {

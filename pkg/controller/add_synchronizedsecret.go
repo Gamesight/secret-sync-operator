@@ -2,7 +2,7 @@
 package controller
 
 import (
-	"github.com/Innervate/secret-sync-operator/pkg/controller/synchronizedsecret"
+	"github.com/Gamesight/secret-sync-operator/pkg/controller/synchronizedsecret"
 )
 
 func init() {

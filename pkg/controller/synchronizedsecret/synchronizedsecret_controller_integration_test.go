@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Innervate/secret-sync-operator/pkg/apis"
-	appv1alpha1 "github.com/Innervate/secret-sync-operator/pkg/apis/app/v1alpha1"
+	"github.com/Gamesight/secret-sync-operator/pkg/apis"
+	appv1alpha1 "github.com/Gamesight/secret-sync-operator/pkg/apis/app/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

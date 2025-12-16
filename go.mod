@@ -1,6 +1,6 @@
-module github.com/Innervate/secret-sync-operator
+module github.com/Gamesight/secret-sync-operator
 
-go 1.24.0
+go 1.22.0
 
 require (
 	k8s.io/api v0.31.4
