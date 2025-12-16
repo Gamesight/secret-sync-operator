@@ -10,8 +10,8 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/Innervate/secret-sync-operator/pkg/apis"
-	"github.com/Innervate/secret-sync-operator/pkg/controller"
+	"github.com/Gamesight/secret-sync-operator/pkg/apis"
+	"github.com/Gamesight/secret-sync-operator/pkg/controller"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"

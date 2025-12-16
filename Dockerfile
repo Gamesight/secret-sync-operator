@@ -1,7 +1,10 @@
 # Build the manager binary
-FROM golang:1.22 as builder
+FROM golang:1.23 AS builder
 
 WORKDIR /workspace
+
+# Allow Go to download newer toolchain if required by dependencies
+ENV GOTOOLCHAIN=auto
 
 # Copy go mod files
 COPY go.mod go.mod
